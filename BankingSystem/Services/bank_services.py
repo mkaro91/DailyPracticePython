@@ -23,14 +23,40 @@ def _generate_account_number(bank: Bank):
 def _new_balance(account: BankAccount):
     print(f"New Balance: ${account.get_balance():,.2f}")
 
+def _pin_entry(account: BankAccount):
+    if account.is_locked:
+        print("Account is locked. Please contact adminastrator to unlock.")
+        return
+    
+    incorrect_count = 0
+
+    while True:
+        pin = collect_non_blank("PIN: ")
+        if account.check_pin(pin):
+            break
+        print("Incorrect PIN.")
+        incorrect_count += 1
+
+        if incorrect_count == 3:
+            account.is_locked = True
+            print("Account has been locked due to incorrect PIN attempts.")
+            break
+
 def create_account(bank: Bank):
     screen_title("Create Account")
 
     account_holder = collect_non_blank("\nName: ").title()
+
+    while True:
+        # Using collect number ensures only numeric values will be used in the PIN
+        pin = collect_number("4-Digit PIN: ")
+        if len(str(pin)) == 4: break
+        print("PIN must be 4 digits.")
+
     starting_balance = _collect_amount("Starting Balance: ", "Initial balance cannot be below zero.")
     account_number = _generate_account_number(bank)
     
-    bank.create_account(BankAccount(account_holder, account_number, starting_balance))
+    bank.create_account(BankAccount(account_holder, account_number, str(pin), starting_balance))
 
     print("\nAccount created!")
     print("Account Number:", account_number)
@@ -44,6 +70,11 @@ def delete_account(bank: Bank):
     # V1.1 Delete Account R1
     account = _find_account(bank)
     if _account_not_found(account):
+        return
+    
+    # V1.2 Require PIN for Account Deletion
+    _pin_entry(account)
+    if account.is_locked:
         return
     
     # V1.1 Delete Account R2
@@ -63,6 +94,11 @@ def deposit(bank: Bank):
     if _account_not_found(account):
         return
     
+    # V1.2 Require PIN for Deposit
+    _pin_entry(account)
+    if account.is_locked:
+        return
+    
     amount = _collect_amount("Amount: ", "Deposit amount cannot be less than zero.")
     result, msg = account.deposit(amount)
     if check_empty(result, msg):
@@ -79,6 +115,11 @@ def withdraw(bank: Bank):
 
     account = _find_account(bank)
     if _account_not_found(account):
+        return
+    
+    # V1.2 Require PIN for Withdraw
+    _pin_entry(account)
+    if account.is_locked:
         return
     
     amount = _collect_amount("Amount: ", "Withdraw amount cannot be less than zero.")
@@ -104,6 +145,11 @@ def transfer(bank: Bank):
     if _account_not_found(sender) or _account_not_found(receiver):
         return
     
+    # V1.2 Require PIN for Transfer
+    _pin_entry(sender)
+    if sender.is_locked:
+        return
+    
     # V1.1 C3 R4: Ask for amount
     amount = _collect_amount("Transfer Amount: ", "Transfer amount cannot be less than zero.")
 
@@ -124,6 +170,11 @@ def account_information(bank: Bank):
     if _account_not_found(account):
         return
     
+    # V1.2 Require PIN for viewing account Information
+    _pin_entry(account)
+    if account.is_locked:
+        return
+    
     print("\n".join(account.account_information()))
     press_enter()
 
@@ -134,6 +185,7 @@ def transaction_history(bank):
     if _account_not_found(account): 
         return
     
+    # V1.2 Require PIN for view account history
     history = account.get_transaction_history()
     if check_empty(history, "No transaction history."):
         return
